@@ -90,9 +90,7 @@ class GradeManagementSystem:
             messagebox.showerror("错误", "CSV文件必须包含'学号'列")
             return
 
-        # 创建表 SQL
         cols_sql = ', '.join([f'"{col}" TEXT' for col in self.db_columns])
-        # 添加总分和平均分列
         create_table_sql = f'''
             CREATE TABLE IF NOT EXISTS students (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +102,6 @@ class GradeManagementSystem:
         self.cursor.execute(create_table_sql)
         self.conn.commit()
 
-        # 检查是否需要导入初始数据（如果表为空）
         self.cursor.execute("SELECT count(*) FROM students")
         if self.cursor.fetchone()[0] == 0:
             self.import_csv_data()
@@ -114,12 +111,11 @@ class GradeManagementSystem:
         try:
             with open(CSV_FILE, 'r', encoding='utf-8') as f:
                 reader = csv.reader(f)
-                next(reader) # 跳过表头
+                next(reader) 
                 
                 insert_sql = f"INSERT INTO students ({', '.join(self.db_columns)}) VALUES ({', '.join(['?']*len(self.db_columns))})"
                 
                 for row in reader:
-                    # 补全或截断 row 以匹配列数
                     if len(row) < len(self.db_columns):
                         row += [''] * (len(self.db_columns) - len(row))
                     elif len(row) > len(self.db_columns):
@@ -132,7 +128,7 @@ class GradeManagementSystem:
             messagebox.showerror("导入错误", str(e))
 
     def create_widgets(self):
-        # --- 顶部工具栏 ---
+        
         toolbar = ttk.Frame(self.root, padding="5")
         toolbar.pack(fill=tk.X)
 
@@ -142,7 +138,7 @@ class GradeManagementSystem:
         ttk.Separator(toolbar, orient=tk.VERTICAL).pack(side=tk.LEFT, padx=5, fill=tk.Y)
         ttk.Button(toolbar, text="计算总分/平均分", command=self.calculate_stats).pack(side=tk.LEFT, padx=2)
         
-        # --- 搜索栏 ---
+        
         ttk.Label(toolbar, text="搜索(姓名/学号):").pack(side=tk.LEFT, padx=5)
         self.search_var = tk.StringVar()
         entry_search = ttk.Entry(toolbar, textvariable=self.search_var)
@@ -151,18 +147,18 @@ class GradeManagementSystem:
         ttk.Button(toolbar, text="查询", command=self.load_data).pack(side=tk.LEFT, padx=2)
         ttk.Button(toolbar, text="显示全部", command=self.reset_search).pack(side=tk.LEFT, padx=2)
 
-        # --- 表格区域 ---
+        
         frame_table = ttk.Frame(self.root)
         frame_table.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
-        # 定义显示列：原始列 + 总分 + 平均分
+        
         show_cols = self.db_columns + ['total_score', 'average_score']
-        # 显示名称映射
+        
         display_names = self.display_columns + ['总分', '平均分']
 
         self.tree = ttk.Treeview(frame_table, columns=show_cols, show='headings')
         
-        # 滚动条
+        
         v_scroll = ttk.Scrollbar(frame_table, orient=tk.VERTICAL, command=self.tree.yview)
         h_scroll = ttk.Scrollbar(frame_table, orient=tk.HORIZONTAL, command=self.tree.xview)
         self.tree.configure(yscrollcommand=v_scroll.set, xscrollcommand=h_scroll.set)
@@ -171,14 +167,14 @@ class GradeManagementSystem:
         h_scroll.pack(side=tk.BOTTOM, fill=tk.X)
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
-        # 设置表头和排序功能
+        
         for col, name in zip(show_cols, display_names):
             self.tree.heading(col, text=name, command=lambda c=col: self.sort_treeview(c, False))
             self.tree.column(col, width=100, anchor='center')
 
     def load_data(self):
         """加载数据到表格"""
-        # 清空当前显示
+        
         for i in self.tree.get_children():
             self.tree.delete(i)
         
@@ -186,8 +182,7 @@ class GradeManagementSystem:
         base_sql = f"SELECT id, {', '.join(self.db_columns)}, total_score, average_score FROM students"
         
         if query:
-            # 假设第二列是姓名，第一列是学号 (根据CSV结构通常如此，或者根据表头判断)
-            # 这里简单做全字段模糊匹配或指定匹配
+            
             where_clause = f" WHERE 姓名 LIKE ? OR 学号 LIKE ?"
             params = (f'%{query}%', f'%{query}%')
             sql = base_sql + where_clause
@@ -197,8 +192,7 @@ class GradeManagementSystem:
 
         rows = self.cursor.fetchall()
         for row in rows:
-            # row[0] 是隐藏的 id，我们在 insert 时不放入 values，而是用 tags 或隐藏列存 id
-            # Treeview 的 values 对应 show_cols
+            
             self.tree.insert('', 'end', iid=row[0], values=row[1:])
 
     def reset_search(self):
@@ -213,10 +207,10 @@ class GradeManagementSystem:
         if not selected:
             messagebox.showwarning("提示", "请先选择一名学生")
             return
-        item_id = selected[0] # 这里 item_id 就是数据库的 id
-        # 获取当前行数据
+        item_id = selected[0] 
+        
         values = self.tree.item(item_id, 'values')
-        # values 包含：原始列 + 总分 + 平均分。我们需要原始列的数据来编辑
+        
         raw_values = values[:len(self.db_columns)]
         self.open_edit_dialog(title="修改学生信息", data=raw_values, record_id=item_id)
 
@@ -226,7 +220,7 @@ class GradeManagementSystem:
         dialog.title(title)
         dialog.geometry("500x600")
         
-        # 创建画布和滚动条以适应多字段
+        
         canvas = tk.Canvas(dialog)
         scrollbar = ttk.Scrollbar(dialog, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
@@ -257,18 +251,18 @@ class GradeManagementSystem:
         def save():
             new_values = [entries[col].get() for col in self.db_columns]
             if record_id:
-                # Update
+                
                 set_clause = ', '.join([f"{col} = ?" for col in self.db_columns])
                 sql = f"UPDATE students SET {set_clause} WHERE id = ?"
                 self.cursor.execute(sql, new_values + [record_id])
             else:
-                # Insert
+                
                 placeholders = ', '.join(['?'] * len(new_values))
                 sql = f"INSERT INTO students ({', '.join(self.db_columns)}) VALUES ({placeholders})"
                 self.cursor.execute(sql, new_values)
             
             self.conn.commit()
-            self.calculate_single_student(record_id) if record_id else None # 如果是修改，简单重算一下或全量重算
+            self.calculate_single_student(record_id) if record_id else None 
             self.load_data()
             dialog.destroy()
             messagebox.showinfo("成功", "保存成功！")
@@ -295,20 +289,16 @@ class GradeManagementSystem:
         for row in rows:
             sid = row[0]
             scores = []
-            # 跳过前两列（通常是学号、姓名等非成绩列），这取决于CSV结构
-            # 简单策略：尝试解析每一列，如果能解析出数字且该列名看起来像课程，则计入
-            # 这里简化逻辑：除了学号姓名，其他都尝试算分
             
-            # 根据 data.csv，前两列是 学号, 姓名. 后面还有 e1,e2,e3 可能也是分数
-            current_data = row[1:] # 除去id
+            current_data = row[1:] 
             
             total = 0
             count = 0
             
-            # 假设第3列开始是成绩 (索引2开始)
+           
             for val in current_data[2:]:
                 score = self.parse_score(val)
-                # 只有非空值才计入平均分的“分母”（或者都计入，视需求定，这里假设有值才算）
+                
                 if val and str(val).strip() != '':
                     total += score
                     count += 1
@@ -322,25 +312,23 @@ class GradeManagementSystem:
         messagebox.showinfo("完成", "所有学生成绩统计完成！")
     
     def calculate_single_student(self, sid):
-        # 类似上面的逻辑，用于单条更新优化，略。
+        
         pass
 
     def sort_treeview(self, col, reverse):
         """按列排序"""
-        # 获取所有数据
+        
         l = [(self.tree.set(k, col), k) for k in self.tree.get_children('')]
         
-        # 尝试转为数字排序
         try:
             l.sort(key=lambda t: float(t[0]) if t[0] else -1, reverse=reverse)
         except ValueError:
             l.sort(key=lambda t: t[0], reverse=reverse)
 
-        # 重新排列
+        
         for index, (val, k) in enumerate(l):
             self.tree.move(k, '', index)
 
-        # 下次点击反序
         self.tree.heading(col, command=lambda: self.sort_treeview(col, not reverse))
 
 if __name__ == "__main__":
